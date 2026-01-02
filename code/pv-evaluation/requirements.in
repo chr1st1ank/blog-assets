@@ -1,0 +1,11 @@
+jupyter
+jupyter_black
+polars
+pyarrow
+pandas
+seaborn
+numpy
+numpy_financial
+scipy
+pvlib
+ipywidgets
