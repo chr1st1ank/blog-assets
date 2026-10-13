@@ -1,0 +1,17 @@
+image: "msb-poc-toolchain:local"
+pull_policy: never
+cpus: 2
+memory: "4G"
+workdir: "/workspace"
+security: default
+mounts:
+  - "./workspace:/workspace:rw"
+  - "./opencode:/root/.config/opencode:ro"
+network:
+  # Only allow public internet access. Exact allow list is also possible:
+  policy: public
+  ports:
+    - "127.0.0.1:8000:8000"
+  tls:
+    enabled: true
+  trust_host_cas: false

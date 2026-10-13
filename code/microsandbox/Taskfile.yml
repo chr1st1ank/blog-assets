@@ -1,0 +1,105 @@
+version: "3"
+
+dotenv: ["secrets.env"]
+
+vars:
+  VM: '{{.VM | default "msb-poc"}}'
+  IMAGE: msb-poc-toolchain:local
+  TASK_BIN_DIR:
+    sh: dirname "$(command -v task)"
+
+env:
+  MSB_HOME: "{{.TASKFILE_DIR}}/.msb"
+
+tasks:
+  default:
+    silent: true
+    cmds:
+      - task --list
+
+  doctor:
+    desc: Check microsandbox installation
+    cmds:
+      - msb doctor
+
+  image:build:
+    desc: Build the toolchain image
+    cmds:
+      - docker build --build-context 'host-tools={{.TASK_BIN_DIR}}' --tag '{{.IMAGE}}' ./toolchain
+
+  image:load:
+    desc: Export and load the toolchain image into msb
+    cmds:
+      - mkdir -p .artifacts
+      - docker image save --output .artifacts/toolchain.tar '{{.IMAGE}}'
+      - msb load --input .artifacts/toolchain.tar --tag '{{.IMAGE}}'
+
+  vm:create:
+    desc: Create or replace the sandbox VM
+    cmds:
+      - msb create --replace --name '{{.VM}}' --secret-conf secrets.yaml --conf sandbox.yaml --mount-owned /var/lib/containers:kind=disk,size=8G
+
+  vm:start:
+    desc: Start the VM
+    cmds:
+      - msb start '{{.VM}}'
+
+  vm:stop:
+    desc: Gracefully stop the VM
+    cmds:
+      - msb stop --timeout 10 '{{.VM}}'
+
+  vm:remove:
+    desc: Remove the VM
+    deps:
+      - vm:stop
+    cmds:
+      - msb remove '{{.VM}}'
+
+  vm:shell:
+    desc: Open a shell in the VM
+    interactive: true
+    cmds:
+      - msb exec -t '{{.VM}}' -- sh
+
+  agent:
+    desc: Run the OpenCode agent inside the VM
+    interactive: true
+    cmds:
+      - msb exec -t '{{.VM}}' -- opencode --standalone
+
+  test:
+    desc: Run the workspace test suite inside the VM
+    cmds:
+      - msb exec '{{.VM}}' -- task test
+
+  boundary:check:
+    desc: Verify sandbox boundary guarantees
+    cmds:
+      - >-
+        msb inspect '{{.VM}}' --format json | python3 -c
+        'import json, os, sys; data = json.load(sys.stdin);
+        config = data["active_config"] or data["config"];
+        binds = {m["guest"]: m for m in config["mounts"] if m["type"] == "Bind"};
+        assert set(binds) == {"/workspace", "/root/.config/opencode"};
+        assert os.path.realpath(binds["/workspace"]["host"]) == os.path.realpath("workspace");
+        assert os.path.realpath(binds["/root/.config/opencode"]["host"]) == os.path.realpath("opencode");
+        assert binds["/root/.config/opencode"].get("readonly") or "ro" in str(binds["/root/.config/opencode"]);
+        print("Only workspace/ (rw) and opencode/ (ro) are configured as host bind mounts")'
+      - >-
+        msb exec '{{.VM}}' -- python -c
+        'from pathlib import Path;
+        assert not Path("/workspace/../secrets.env").exists();
+        assert not Path("/workspace/../sandbox.yaml").exists();
+        assert not Path("/var/run/docker.sock").exists();
+        print("Basic boundary checks passed")'
+
+  app:up:
+    desc: Build and start the app stack in the VM
+    cmds:
+      - msb exec '{{.VM}}' -- task compose:up
+
+  app:down:
+    desc: Stop the app stack in the VM
+    cmds:
+      - msb exec '{{.VM}}' -- task compose:down

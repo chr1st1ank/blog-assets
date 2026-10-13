@@ -1,0 +1,7 @@
+.msb/
+.artifacts/
+.runtime/
+secrets.env
+.env*
+!.env.example
+local/

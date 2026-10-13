@@ -1,0 +1,27 @@
+version: "3"
+
+tasks:
+  default:
+    silent: true
+    cmds:
+      - task --list
+
+  test:
+    desc: Run the pytest suite
+    cmds:
+      - uv run --locked --group test pytest
+
+  serve:
+    desc: Run the app with uvicorn
+    cmds:
+      - uv run --locked uvicorn hello_app.main:app --host 0.0.0.0 --port 8000
+
+  compose:up:
+    desc: Build and start the compose stack
+    cmds:
+      - podman-compose --podman-build-args=--network=host -f compose.yml up --build -d
+
+  compose:down:
+    desc: Stop the compose stack
+    cmds:
+      - podman-compose -f compose.yml down

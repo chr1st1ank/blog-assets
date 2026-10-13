@@ -1,0 +1,14 @@
+services:
+  app:
+    build:
+      context: .
+      network: host
+      secrets:
+        - msb_ca
+    network_mode: slirp4netns
+    ports:
+      - "8000:8000"
+
+secrets:
+  msb_ca:
+    file: /etc/ssl/certs/ca-certificates.crt

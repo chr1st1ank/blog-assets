@@ -1,0 +1,16 @@
+local/
+.local/
+.env*
+!.env.example
+.venv/
+.cache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ty_cache/
+.git/
+.coverage
+build/
+dist/
+*.egg-info/
